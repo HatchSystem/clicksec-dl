@@ -9,6 +9,7 @@ import os
 import sys
 import time
 from collections import Counter
+from datetime import datetime
 from pathlib import Path
 
 import requests
@@ -19,7 +20,7 @@ from .catalog import Catalog, catalog_path, load_catalog, save_catalog, scan
 from .download import Outcome, build_url, download_one
 from .env import load_dotenv
 from .http import new_session
-from .months import month_range, parse_month
+from .months import YearMonth, current_month, month_range, parse_month, previous_month
 from .products import PRODUCTS, Product
 from .symbols import select_symbols
 
@@ -88,21 +89,28 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     download = argparse.ArgumentParser(add_help=False)
-    download.add_argument(
+    period = download.add_argument_group(
+        "期間",
+        "--from / --to か、--this-month / --last-month のどちらかで指定する（月は日本時間で判定）",
+    )
+    period.add_argument(
         "--from",
         dest="from_month",
-        required=True,
         type=_month_arg,
         metavar="YYYY-MM",
         help="開始年月",
     )
-    download.add_argument(
+    period.add_argument(
         "--to",
         dest="to_month",
         type=_month_arg,
         metavar="YYYY-MM",
         help="終了年月（省略時は --from と同じ月）",
     )
+    period.add_argument(
+        "--this-month", action="store_true", help="当月（--last-month と併用すると前月〜当月）"
+    )
+    period.add_argument("--last-month", action="store_true", help="前月")
     download.add_argument(
         "--symbols",
         nargs="+",
@@ -257,9 +265,26 @@ def run_catalog_update(product: Product, args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def resolve_period(args: argparse.Namespace, now: datetime | None = None) -> list[YearMonth]:
+    """期間オプションを年月の一覧にする。指定の矛盾・不足は ValueError。"""
+    relative = args.this_month or args.last_month
+    if relative and (args.from_month or args.to_month):
+        raise ValueError("--this-month / --last-month は --from / --to と同時に指定できません")
+    if relative:
+        this = current_month(now)
+        start = previous_month(this) if args.last_month else this
+        end = this if args.this_month else start
+        return month_range(start, end)
+    if args.from_month is None:
+        raise ValueError(
+            "期間を指定してください（--from YYYY-MM、--this-month、--last-month のいずれか）"
+        )
+    return month_range(args.from_month, args.to_month or args.from_month)
+
+
 def run_download(product: Product, args: argparse.Namespace) -> int:
     try:
-        months = month_range(args.from_month, args.to_month or args.from_month)
+        months = resolve_period(args)
     except ValueError as e:
         log.error("%s", e)
         return EXIT_CONFIG
@@ -350,7 +375,7 @@ def run_download(product: Product, args: argparse.Namespace) -> int:
 def _log_result(r) -> None:
     head = f"{r.year}-{r.month:02d} {r.symbol.code}"
     if r.outcome is Outcome.DOWNLOADED:
-        log.info("[成功]     %s → %s", head, r.path)
+        log.info("[成功]     %s → %s%s", head, r.path, f"（{r.detail}）" if r.detail else "")
     elif r.outcome is Outcome.EXISTING:
         log.info("[既存]     %s (%s)", head, r.path)
     elif r.outcome is Outcome.NO_DATA:

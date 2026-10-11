@@ -4,7 +4,21 @@ from __future__ import annotations
 
 import shutil
 import zipfile
+from datetime import timedelta
 from pathlib import Path, PurePosixPath
+
+from .months import YearMonth, month_end
+
+# 月末最終日のデータが翌日に反映される場合に備えた余裕
+COMPLETE_MARGIN = timedelta(days=1)
+
+
+def is_complete(path: Path, ym: YearMonth) -> bool:
+    """保存済みの月次 ZIP が、その月の終了後に取得したもの（完全版）か。
+
+    月の途中で取得した ZIP はその時点までのデータしか含まないため、途中版として扱う。
+    """
+    return path.stat().st_mtime >= (month_end(ym) + COMPLETE_MARGIN).timestamp()
 
 
 class InvalidZipError(ValueError):

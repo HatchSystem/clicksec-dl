@@ -6,7 +6,7 @@ import requests
 from clicksec_dl.download import Outcome, build_url, download_one, filename_from_headers
 from clicksec_dl.products import CFD, FX
 from clicksec_dl.symbols import Symbol
-from conftest import FakeResponse, FakeSession, zip_response
+from conftest import FakeResponse, FakeSession, make_zip, zip_response
 
 USDJPY = Symbol("21", "USDJPY")
 JP225 = Symbol("00001060000", "JP225")
@@ -157,3 +157,62 @@ def test_download_extracts_existing_zip(tmp_path, no_sleep):
 
     assert r.outcome is Outcome.EXISTING
     assert (tmp_path / "fx" / "USDJPY" / "a.csv").read_bytes() == b"a"
+
+
+def _set_mtime(path, when):
+    import os
+
+    os.utime(path, (when.timestamp(), when.timestamp()))
+
+
+def test_download_refreshes_partial_month_file(tmp_path, no_sleep):
+    from datetime import datetime
+
+    from clicksec_dl.months import JST
+
+    existing = tmp_path / "fx" / "USDJPY" / "USDJPY_202609.zip"
+    existing.parent.mkdir(parents=True)
+    existing.write_bytes(b"partial")
+    _set_mtime(existing, datetime(2026, 9, 15, tzinfo=JST))  # 9 月の途中で取得した途中版
+    session = FakeSession([zip_response("USDJPY_202609.zip", {"d.csv": b"full"})])
+
+    r = download_one(session, FX, 2026, 9, USDJPY, out_root=tmp_path, sleep=no_sleep)
+
+    assert r.outcome is Outcome.DOWNLOADED
+    assert r.detail == "途中版を更新"
+    assert existing.read_bytes() != b"partial"
+
+
+def test_download_refresh_overwrites_extracted_csv(tmp_path, no_sleep):
+    from datetime import datetime
+
+    from clicksec_dl.months import JST
+
+    symbol_dir = tmp_path / "fx" / "USDJPY"
+    symbol_dir.mkdir(parents=True)
+    zip_path = symbol_dir / "USDJPY_202609.zip"
+    zip_path.write_bytes(make_zip({"d.csv": b"partial"}))
+    _set_mtime(zip_path, datetime(2026, 9, 15, tzinfo=JST))
+    (symbol_dir / "d.csv").write_bytes(b"partial")
+    session = FakeSession([zip_response("USDJPY_202609.zip", {"d.csv": b"full"})])
+
+    download_one(session, FX, 2026, 9, USDJPY, out_root=tmp_path, extract=True, sleep=no_sleep)
+
+    assert (symbol_dir / "d.csv").read_bytes() == b"full"
+
+
+def test_download_keeps_file_saved_after_month_end(tmp_path, no_sleep):
+    from datetime import datetime
+
+    from clicksec_dl.months import JST
+
+    existing = tmp_path / "fx" / "USDJPY" / "USDJPY_202609.zip"
+    existing.parent.mkdir(parents=True)
+    existing.write_bytes(b"complete")
+    _set_mtime(existing, datetime(2026, 10, 3, tzinfo=JST))
+    session = FakeSession([])
+
+    r = download_one(session, FX, 2026, 9, USDJPY, out_root=tmp_path, sleep=no_sleep)
+
+    assert r.outcome is Outcome.EXISTING
+    assert session.calls == []

@@ -14,7 +14,7 @@ from urllib.parse import unquote
 import requests
 
 from .products import Product
-from .storage import InvalidZipError, extract_zip, save_zip
+from .storage import InvalidZipError, extract_zip, is_complete, save_zip
 from .symbols import Symbol
 
 log = logging.getLogger(__name__)
@@ -111,9 +111,13 @@ def download_one(
             extract_zip(path, symbol_dir, force=force)
         return result(Outcome.EXISTING, path)
 
+    def keep_existing(path: Path) -> bool:
+        # 月の途中で取得した ZIP は途中版なので、--force が無くても取り直す
+        return not force and path.exists() and is_complete(path, (year, month))
+
     # ファイル名が予測できるなら、リクエスト前に既存判定して通信を省く
     predicted = product.predict_filename(year, month, symbol)
-    if predicted and not force and (symbol_dir / predicted).exists():
+    if predicted and keep_existing(symbol_dir / predicted):
         return finish_existing(symbol_dir / predicted)
 
     last_error = ""
@@ -142,8 +146,9 @@ def download_one(
             return result(Outcome.NO_DATA, detail=f"ZIP 以外の応答: {fetched.filename}")
 
         target = symbol_dir / fetched.filename
-        if target.exists() and not force:
+        if keep_existing(target):
             return finish_existing(target)
+        refreshing = target.exists()
 
         try:
             save_zip(target, fetched.content)
@@ -162,8 +167,9 @@ def download_one(
             continue
 
         if extract:
-            extract_zip(target, symbol_dir, force=force)
-        return result(Outcome.DOWNLOADED, target)
+            # 途中版を取り直した場合は、展開済みの CSV も新しい内容で上書きする
+            extract_zip(target, symbol_dir, force=force or refreshing)
+        return result(Outcome.DOWNLOADED, target, "途中版を更新" if refreshing else "")
 
     return result(Outcome.FAILED, detail=last_error)
 

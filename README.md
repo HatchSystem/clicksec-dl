@@ -42,6 +42,11 @@ uv run clicksec-dl fx --from 2024-12 --to 2025-01 --symbols USDJPY EURJPY
 # CFD: 2025-01 の全銘柄。ZIP の中身も展開する
 uv run clicksec-dl cfd --from 2025-01 --extract
 
+# 当月 / 前月 / 前月〜当月（月は日本時間で判定）
+uv run clicksec-dl fx --this-month
+uv run clicksec-dl fx --last-month
+uv run clicksec-dl fx --last-month --this-month
+
 # カタログの銘柄一覧（ID、取得できる期間、表示名）
 uv run clicksec-dl symbols fx
 
@@ -53,9 +58,13 @@ uv run clicksec-dl fx --from 2024-12 --dry-run
 
 保存先は `data/{fx|cfd}/{銘柄コード}/{サーバーが返すファイル名}` です。同名ファイルが既にあれば取得をスキップし、`--force` で上書きします。
 
+ただし、その月が終わる前（翌月 2 日 0:00 JST より前）に保存したファイルは、月の途中までのデータしか含まない途中版とみなし、`--force` が無くても取り直して上書きします。`--extract` を付けている場合は、展開済みの CSV も新しい内容で上書きします。当月分を毎日取り直したり、月内に取得した前月分を月明けに最新化したりする場合も、同じコマンドを実行するだけで済みます。
+
 | オプション | 既定 | 説明 |
 |---|---|---|
-| `--from` / `--to` | 必須 / `--from` と同じ | 対象期間（YYYY-MM、両端含む） |
+| `--from` / `--to` | - / `--from` と同じ | 対象期間（YYYY-MM、両端含む） |
+| `--this-month` | off | 当月（日本時間）。`--last-month` と併用すると前月〜当月 |
+| `--last-month` | off | 前月（日本時間） |
 | `--symbols` | カタログの全銘柄 | 銘柄コード |
 | `--out` | `data` | 保存先ルート |
 | `--force` | off | 既存ファイルを再取得して上書き |
@@ -66,6 +75,8 @@ uv run clicksec-dl fx --from 2024-12 --dry-run
 | `--interval` | FX 1 秒 / CFD 2 秒 | リクエスト間の待機 |
 | `--retries` | 3 | 1 件あたりの最大試行回数 |
 | `--env-file` | `.env` | 認証情報を読むファイル |
+
+期間は `--from` か、`--this-month` / `--last-month` のどちらかで必ず指定します。両方の形式は同時に指定できません。
 
 終了コード: `0` 全件成功、`1` 失敗した件がある、`2` 引数・認証情報・ログインのエラー。
 

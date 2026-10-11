@@ -39,3 +39,25 @@ def test_extract_zip_rejects_unsafe_entries(tmp_path, name):
     zip_path.write_bytes(make_zip({name: b"x"}))
     with pytest.raises(UnsafeZipEntryError):
         extract_zip(zip_path, tmp_path / "out")
+
+
+def _touch(path, when):
+    import os
+
+    path.write_bytes(b"x")
+    os.utime(path, (when.timestamp(), when.timestamp()))
+
+
+def test_is_complete_requires_saving_after_month_end_with_margin(tmp_path):
+    from datetime import datetime
+
+    from clicksec_dl.months import JST
+    from clicksec_dl.storage import is_complete
+
+    path = tmp_path / "a.zip"
+    _touch(path, datetime(2026, 9, 20, tzinfo=JST))  # 月の途中で取得
+    assert not is_complete(path, (2026, 9))
+    _touch(path, datetime(2026, 10, 1, 12, tzinfo=JST))  # 月末直後（余裕 1 日の内側）
+    assert not is_complete(path, (2026, 9))
+    _touch(path, datetime(2026, 10, 2, tzinfo=JST))
+    assert is_complete(path, (2026, 9))

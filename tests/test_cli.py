@@ -129,3 +129,43 @@ def test_credentials_from_env_file_reach_login(tmp_path, monkeypatch):
 
     assert code == cli.EXIT_CONFIG
     assert seen == {"username": "u", "password": "p"}
+
+
+def _period(argv, now):
+    args = cli.build_parser().parse_args(["fx", *argv])
+    return cli.resolve_period(args, now)
+
+
+@pytest.mark.parametrize(
+    "argv, expected",
+    [
+        (["--this-month"], [(2026, 1)]),
+        (["--last-month"], [(2025, 12)]),  # 年をまたぐ
+        (["--last-month", "--this-month"], [(2025, 12), (2026, 1)]),
+        (["--from", "2025-06"], [(2025, 6)]),
+    ],
+)
+def test_resolve_period(argv, expected):
+    from datetime import datetime
+
+    from clicksec_dl.months import JST
+
+    assert _period(argv, datetime(2026, 1, 5, tzinfo=JST)) == expected
+
+
+@pytest.mark.parametrize(
+    "argv, message",
+    [
+        (["--this-month", "--from", "2025-01"], "同時に指定できません"),
+        (["--last-month", "--to", "2025-01"], "同時に指定できません"),
+        ([], "期間を指定してください"),
+    ],
+)
+def test_resolve_period_rejects_invalid(argv, message):
+    with pytest.raises(ValueError, match=message):
+        _period(argv, None)
+
+
+def test_missing_period_is_config_error(capsys):
+    assert cli.main(["fx", "--dry-run"]) == cli.EXIT_CONFIG
+    assert "期間を指定してください" in capsys.readouterr().err
