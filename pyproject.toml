@@ -1,0 +1,35 @@
+[project]
+name = "clicksec-dl"
+version = "0.1.0"
+description = "GMOクリック証券の FXネオ / CFD ヒストリカルデータ ZIP をローカルへダウンロードする CLI"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE"]
+dependencies = [
+  "requests>=2.32",
+]
+
+[project.scripts]
+clicksec-dl = "clicksec_dl.cli:main"
+
+[dependency-groups]
+dev = [
+  "pytest>=8",
+  "ruff>=0.8",
+]
+
+[build-system]
+requires = ["uv_build>=0.11,<0.12"]
+build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "PTH"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

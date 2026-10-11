@@ -1,0 +1,35 @@
+<!-- 実ページ（FX historicalDataList.do）の構造を模した合成データ -->
+<html><body>
+<form name="f" method="GET" action="historicalDataList.do">
+  <select class="select" name="y" onChange="document.f.submit();">
+    <option value="2016" selected>2016年</option>
+    <option value="2015">2015年</option>
+  </select>
+</form>
+<table>
+  <thead><tr><td class="col01">&nbsp;</td><td>1月</td><td>2月</td><td>3月</td></tr></thead>
+  <tbody>
+  <tr>
+    <td class="col01">
+      <img src="images/us.svg" alt="米ドル"><img src="images/jp.svg" alt="円">
+      米ドル/円
+    </td>
+    <td><a href="historicalDataDownload.do?y=2016&amp;m=01&amp;c=01&amp;n=USDJPY">DL</a></td>
+    <td><a href="historicalDataDownload.do?y=2016&amp;m=02&amp;c=01&amp;n=USDJPY">DL</a></td>
+    <td>&nbsp;</td>
+  </tr>
+  <tr>
+    <td class="col01">
+      米ドル/円
+    </td>
+    <td><a href="historicalDataDownload.do?y=2016&m=01&c=21&n=USDJPY">DL</a></td>
+    <td><a href="historicalDataDownload.do?y=2016&m=02&c=21&n=USDJPY">DL</a></td>
+    <td><a href="historicalDataDownload.do?y=2016&m=03&c=21&n=USDJPY">DL</a></td>
+  </tr>
+  <tr>
+    <td class="col01">悪意のある行</td>
+    <td><a href="historicalDataDownload.do?y=2016&m=01&c=99&n=../../evil">DL</a></td>
+  </tr>
+  </tbody>
+</table>
+</body></html>

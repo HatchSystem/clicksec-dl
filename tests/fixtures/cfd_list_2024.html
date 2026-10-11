@@ -1,0 +1,38 @@
+<!-- 実ページ（CFD historicalDataList.do）の構造を模した合成データ。guid は架空の値 -->
+<html><head>
+<script type="text/javascript">
+function dl_onclick(y,m,c,n){
+ document.dlform.setAttribute("action", "historicalDataDownload.do?y="+y+"&m="+m+"&c="+c+"&n="+n);
+ document.dlform.submit();
+}
+</script>
+</head><body>
+<form name="f" method="POST" action="historicalDataList.do">
+<input type="hidden" id="f_guid" name="guid" value="99999" />
+  <select class="select" name="y" onChange="document.f.submit();">
+    <option value="2024" selected>2024年</option>
+    <option value="2023">2023年</option>
+    <option value="2011">2011年</option>
+  </select>
+</form>
+<table>
+  <tbody>
+  <tr>
+    <td class="col01"><span class="icon_jn"></span>日本225</td>
+    <td><a href="javascript:dl_onclick(2024,'01','00001060000','JP225');void(0)">DL</a></td>
+    <td><a href="javascript:dl_onclick(2024,'02','00001060000','JP225');void(0)">DL</a></td>
+  </tr>
+  <tr>
+    <td class="col01">銅先物</td>
+    <td><a href="javascript:dl_onclick(2024,'01','00023070000','Copper_Futures');void(0)">DL</a></td>
+  </tr>
+  <tr>
+    <td class="col01">鉄鉱石</td>
+    <td>&nbsp;</td>
+    <td><a href="javascript:dl_onclick(2024,'02','00023070000','Iron_Ore_Futures');void(0)">DL</a></td>
+  </tr>
+  </tbody>
+</table>
+<form id="id_download" name="dlform" method="post">
+<input type="hidden" id="dl_guid" name="guid" value="99999" /></form>
+</body></html>
